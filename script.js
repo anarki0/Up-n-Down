@@ -1,7 +1,7 @@
 // ----------------------------------------------------
 // Supabase Cloud Configuration (Backend Connection)
 // ----------------------------------------------------
-const SUPABASE_URL = 'https://ydkhhnralclajmryhqeg.supabase.co/rest/v1/';
+const SUPABASE_URL = 'https://ydkhhnralclajmryhqeg.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlka2hobnJhbGNsYWptcnlocWVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNTEyNTUsImV4cCI6MjA5ODgyNzI1NX0.xirFAhMo6cYAM9JPLZKdgnmNaY2FZCFcadnht947AaQ';
 
 const isSupabaseConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_KEY !== 'YOUR_SUPABASE_ANON_KEY';
@@ -344,7 +344,15 @@ async function handleUpload(file) {
   const isPasswordProtected = passwordToggle.getAttribute('aria-checked') === 'true';
   const passwordVal = isPasswordProtected ? sharePassword.value.trim() : null;
   const expiryVal = parseInt(shareExpiry.value);
-  const storagePath = `${secretId}/${file.name}`;
+
+  // Sanitizing path parameters properly to resolve "Invalid path specified in request URL"
+  let sanitizedFileName = file.name
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9._-]/g, '');
+  if (!sanitizedFileName) {
+    sanitizedFileName = `file_${secretId}`;
+  }
+  const storagePath = `${secretId}/${sanitizedFileName}`;
 
   if (isSupabaseConfigured && supabaseClient) {
     try {
@@ -364,7 +372,7 @@ async function handleUpload(file) {
         .insert([
           {
             secret_id: secretId,
-            file_name: file.name,
+            file_name: file.name, // Save the original name in table metadata
             file_size: file.size,
             storage_path: storagePath,
             password: passwordVal,
