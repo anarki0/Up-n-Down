@@ -80,7 +80,7 @@
 
         <!-- Drag & Drop Zone -->
         <div id="drop-zone" class="relative border-2 border-dashed border-gray-300/80 hover:border-blue-500 rounded-xl p-8 flex flex-col items-center justify-center transition-all bg-white/30 hover:bg-white/60 cursor-pointer group shadow-sm">
-          <input type="file" id="file-input" class="hidden">
+          <input type="file" id="file-input" class="hidden" multiple>
           <!-- Overlay for drag hover feedback -->
           <div id="drop-zone-overlay" class="absolute inset-0 bg-blue-500/5 rounded-xl opacity-0 transition-opacity pointer-events-none"></div>
           
@@ -95,7 +95,7 @@
               <p class="text-xs text-gray-400">or <span class="text-blue-600 group-hover:underline font-medium">browse files</span> on your computer</p>
             </div>
             
-            <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider bg-gray-100/80 px-2 py-0.5 rounded">Up to 10 MB</span>
+            <span class="text-[10px] uppercase font-bold text-gray-400 tracking-wider bg-gray-100/80 px-2 py-0.5 rounded">Up to 50 MB total</span>
           </div>
         </div>
       </div>
@@ -107,27 +107,15 @@
           <p class="text-sm text-gray-500">Configure safety permissions and access criteria.</p>
         </div>
 
-        <!-- File Detail Card -->
-        <div class="bg-white/40 border border-gray-200/50 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <!-- Dynamically mapped file icon will be inserted here -->
-              <div id="detail-file-icon" class="p-2 bg-rose-50 border border-rose-100 rounded-lg text-rose-500 shadow-sm flex items-center justify-center">
-                <!-- Fallback icon -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
-              </div>
-              <div class="flex flex-col min-w-0">
-                <span id="detail-file-name" class="text-xs font-semibold text-gray-700 truncate max-w-[200px] sm:max-w-[300px]">file_name.ext</span>
-                <span id="detail-file-size" class="text-[10px] text-gray-400">0 KB &bull; Unknown Type</span>
-              </div>
-            </div>
-            <button id="cancel-upload-btn" class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer" title="Remove file">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-            </button>
+        <!-- File Detail scrollable list container -->
+        <div class="bg-white/40 border border-gray-200/50 rounded-xl p-4 flex flex-col gap-4 shadow-sm">
+          <!-- Scrollable files container -->
+          <div id="upload-files-list" class="max-h-36 overflow-y-auto pr-1 flex flex-col gap-2">
+            <!-- Dynamic file list items inserted here -->
           </div>
 
           <!-- Sleek macOS Style Progress Bar -->
-          <div class="space-y-1">
+          <div class="space-y-1 pt-2 border-t border-gray-200/40">
             <div class="w-full h-1.5 bg-gray-200/60 rounded-full overflow-hidden shadow-inner">
               <div id="progress-bar-fill" class="w-0 h-full bg-gradient-to-r from-blue-600 to-blue-500 rounded-full shadow-[0_1px_3px_rgba(37,99,235,0.4)] transition-all duration-100"></div>
             </div>
@@ -181,11 +169,16 @@
           </div>
         </div>
 
-        <!-- Action Button -->
-        <button id="generate-id-btn" disabled class="w-full bg-gray-400 text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-not-allowed">
-          <span>Generate Secret ID</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-key"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 1.5 1.5M15.5 7.5 14 6"/></svg>
-        </button>
+        <!-- Action Button & Global cancel button -->
+        <div class="flex gap-2.5 w-full">
+          <button id="cancel-upload-btn" class="w-[30%] bg-gray-100 hover:bg-gray-200/80 active:scale-[0.98] text-gray-700 font-semibold text-sm py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 border border-gray-200/50 cursor-pointer">
+            Cancel
+          </button>
+          <button id="generate-id-btn" disabled class="w-[70%] bg-gray-400 text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-not-allowed">
+            <span>Generate Secret ID</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-key"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 1.5 1.5M15.5 7.5 14 6"/></svg>
+          </button>
+        </div>
       </div>
 
       <!-- Upload Success State (6-Digit ID Display) -->
@@ -291,7 +284,13 @@
           </div>
         </div>
 
-        <!-- Divider inside details -->
+        <div class="h-[1px] w-full bg-gray-200/40"></div>
+
+        <!-- Files list container for multiple files inside folder -->
+        <div id="download-files-list" class="max-h-40 overflow-y-auto pr-1 flex flex-col gap-2">
+          <!-- Dynamic file items inside retrieved folder path go here -->
+        </div>
+
         <div class="h-[1px] w-full bg-gray-200/40"></div>
 
         <!-- Additional Metadata Details (Sender, Expiration, Safety check) -->
@@ -317,10 +316,10 @@
           </div>
         </div>
 
-        <!-- Download Action Trigger Link -->
+        <!-- Download Action Trigger Link (Action: download all files) -->
         <a id="download-action-btn" href="#" class="w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer text-center decoration-none select-none">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-          <span>Download File</span>
+          <span>Download All Files</span>
         </a>
       </div>
     </section>

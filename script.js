@@ -22,9 +22,9 @@ if (isSupabaseConfigured) {
 // Global State Management
 // ----------------------------------------------------
 window.uploadedFiles = [];
-window.sessionBlobs = {}; 
+window.sessionBlobs = {}; // Holds array of files mapped to Secret ID (Local Preview Only)
 
-let currentSelectedFile = null;
+let selectedFilesList = []; // Array to store multiple selected files in the staging area
 let uploadProgressInterval = null;
 let activeSecuredRecord = null; 
 
@@ -32,13 +32,13 @@ let activeSecuredRecord = null;
 let tabUpload, tabDownload, uploadPanel, downloadPanel;
 let uploadInitialState, uploadDetailState, uploadSuccessState;
 let dropZone, dropZoneOverlay, fileInput;
-let detailFileName, detailFileSize, detailFileIcon, cancelUploadBtn;
+let uploadFilesList, cancelUploadBtn;
 let progressBarFill, uploadStatusText, uploadStats;
 let passwordToggle, passwordInputContainer, sharePassword, shareExpiry;
 let generateIdBtn, secretIdBox, copyIdBtn, copyBtnText, copyIcon, resetUploadBtn;
 let downloadIdInput, retrieveBtn, downloadErrorMsg, errorText;
 let downloadPasswordContainer, downloadPasswordInput, unlockBtn, passwordErrorMsg;
-let downloadResultContainer, downloadPreviewIcon, downloadFileName, downloadFileSize, downloadFileExpiry, downloadActionBtn;
+let downloadResultContainer, downloadPreviewIcon, downloadFileName, downloadFileSize, downloadFileExpiry, downloadActionBtn, downloadFilesList;
 let toastNotification, toastIcon, toastTitle, toastBody;
 let toastTimeout = null;
 
@@ -95,10 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
   dropZoneOverlay = document.getElementById('drop-zone-overlay');
   fileInput = document.getElementById('file-input');
 
-  // Selected file layout metadata fields
-  detailFileName = document.getElementById('detail-file-name');
-  detailFileSize = document.getElementById('detail-file-size');
-  detailFileIcon = document.getElementById('detail-file-icon');
+  // Selected file list nodes
+  uploadFilesList = document.getElementById('upload-files-list');
   cancelUploadBtn = document.getElementById('cancel-upload-btn');
   progressBarFill = document.getElementById('progress-bar-fill');
   uploadStatusText = document.getElementById('upload-status-text');
@@ -135,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
   downloadFileSize = document.getElementById('download-file-size');
   downloadFileExpiry = document.getElementById('download-file-expiry');
   downloadActionBtn = document.getElementById('download-action-btn');
+  downloadFilesList = document.getElementById('download-files-list');
 
   // Toast structures
   toastNotification = document.getElementById('toast-notification');
@@ -224,47 +223,108 @@ function getFileTypeCategory(fileName) {
 }
 
 // ----------------------------------------------------
-// Input File Validation Checks
+// Input File Validation Checks (Multiple Files Support)
 // ----------------------------------------------------
-function handleFileSelection(file) {
-  // Size restriction of 10MB
-  const maxBytesLimit = 10 * 1024 * 1024;
-  if (file.size > maxBytesLimit) {
-    triggerToast('File Too Large', 'Maximum allowable size for uploads is capped at 10MB.', 'error');
-    fileInput.value = '';
-    return;
-  }
+function handleFileSelection(files) {
+  const filesArray = Array.from(files);
 
-  // Executable file restrictions
+  // 1. File Type Restriction: Block executable files
   const blockedExtensions = ['exe', 'bat', 'sh', 'cmd', 'bin', 'msi', 'com', 'app', 'elf'];
-  const ext = file.name.split('.').pop().toLowerCase();
-  if (blockedExtensions.includes(ext)) {
+  const hasExecutables = filesArray.some(file => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    return blockedExtensions.includes(ext);
+  });
+
+  if (hasExecutables) {
     triggerToast('Restricted File Type', 'Executable scripts (.exe, .bat, .sh) are blocked for safety.', 'error');
     fileInput.value = '';
     return;
   }
 
-  currentSelectedFile = file;
+  // Merge new files into the staging selectedFilesList array
+  const tempMergedList = [...selectedFilesList, ...filesArray];
 
-  const category = getFileTypeCategory(file.name);
-  detailFileIcon.innerHTML = iconSvgs[category] || iconSvgs.default;
-  
-  detailFileIcon.className = 'p-2 rounded-lg shadow-sm flex items-center justify-center border ';
-  const colors = iconColors[category] || iconColors.default;
-  detailFileIcon.classList.add(colors.bg, colors.border, colors.text);
+  // 2. Limit & Validation: Validate total combined size (50MB)
+  const maxBytesLimit = 50 * 1024 * 1024; // 50MB
+  const totalCombinedSize = tempMergedList.reduce((sum, f) => sum + f.size, 0);
 
-  detailFileName.textContent = file.name;
-  detailFileSize.textContent = `${formatBytes(file.size)} • ${category.toUpperCase()}`;
+  if (totalCombinedSize > maxBytesLimit) {
+    triggerToast('Upload Limit Exceeded', 'The combined size of all files exceeds the 50MB limit.', 'error');
+    fileInput.value = '';
+    return;
+  }
 
-  resetSharingParameters();
+  // Commit merged staging list
+  selectedFilesList = tempMergedList;
+  fileInput.value = ''; // Reset input element to allow re-selection
 
+  // Render file list dynamically
+  renderUploadFilesList();
+
+  // Transition UI
   uploadInitialState.classList.add('hidden');
   uploadDetailState.classList.remove('hidden');
 
-  simulatePreparationAnimation(file);
+  // Trigger loading animation based on total size
+  simulatePreparationAnimation(totalCombinedSize);
 }
 
-function simulatePreparationAnimation(file) {
+function renderUploadFilesList() {
+  uploadFilesList.innerHTML = '';
+
+  selectedFilesList.forEach((file, index) => {
+    const category = getFileTypeCategory(file.name);
+    const colors = iconColors[category] || iconColors.default;
+    const iconHtml = iconSvgs[category] || iconSvgs.default;
+
+    const itemDiv = document.createElement('div');
+    itemDiv.className = "flex items-center justify-between bg-white/50 border border-gray-200/30 rounded-lg p-2.5 shadow-sm";
+    itemDiv.innerHTML = `
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="p-1.5 rounded-md flex items-center justify-center border ${colors.bg} ${colors.border} ${colors.text}">
+          ${iconHtml}
+        </div>
+        <div class="flex flex-col min-w-0">
+          <span class="text-xs font-semibold text-gray-700 truncate max-w-[200px] sm:max-w-[300px]">${file.name}</span>
+          <span class="text-[9px] text-gray-400">${formatBytes(file.size)} &bull; ${category.toUpperCase()}</span>
+        </div>
+      </div>
+      <button class="remove-file-btn text-gray-400 hover:text-rose-500 p-1 rounded-full hover:bg-rose-50/50 transition-colors cursor-pointer" data-index="${index}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    `;
+
+    uploadFilesList.appendChild(itemDiv);
+  });
+
+  // Bind individual file remove listeners
+  const removeButtons = uploadFilesList.querySelectorAll('.remove-file-btn');
+  removeButtons.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetIndex = parseInt(btn.getAttribute('data-index'));
+      removeFileFromSelection(targetIndex);
+    });
+  });
+}
+
+function removeFileFromSelection(index) {
+  selectedFilesList.splice(index, 1);
+  
+  if (selectedFilesList.length === 0) {
+    resetUploadView();
+    triggerToast('Selection Cleared', 'All files removed.', 'info');
+  } else {
+    renderUploadFilesList();
+    
+    // Re-simulate animation for new total size
+    const totalCombinedSize = selectedFilesList.reduce((sum, f) => sum + f.size, 0);
+    simulatePreparationAnimation(totalCombinedSize);
+    triggerToast('File Removed', 'File removed from selection.', 'info');
+  }
+}
+
+function simulatePreparationAnimation(totalSize) {
   if (uploadProgressInterval) clearInterval(uploadProgressInterval);
   
   generateIdBtn.disabled = true;
@@ -273,9 +333,9 @@ function simulatePreparationAnimation(file) {
   let progress = 0;
   progressBarFill.style.width = '0%';
   uploadStatusText.textContent = 'Preparing... 0%';
-  uploadStats.textContent = `0 MB of ${formatBytes(file.size)}`;
+  uploadStats.textContent = `0 MB of ${formatBytes(totalSize)}`;
 
-  const fileSizeInMb = (file.size / (1024 * 1024)).toFixed(1);
+  const fileSizeInMb = (totalSize / (1024 * 1024)).toFixed(1);
   
   uploadProgressInterval = setInterval(() => {
     progress += Math.floor(Math.random() * 15) + 5;
@@ -292,24 +352,16 @@ function simulatePreparationAnimation(file) {
     } else {
       progressBarFill.style.width = `${progress}%`;
       uploadStatusText.textContent = `Preparing... ${progress}%`;
-      const loadedInMb = ((file.size * (progress / 100)) / (1024 * 1024)).toFixed(1);
+      const loadedInMb = ((totalSize * (progress / 100)) / (1024 * 1024)).toFixed(1);
       uploadStats.textContent = `${loadedInMb} MB of ${fileSizeInMb} MB`;
     }
   }, 50);
 }
 
-function resetSharingParameters() {
-  passwordToggle.setAttribute('aria-checked', 'false');
-  passwordToggle.className = "w-10 h-6 bg-gray-300 rounded-full p-0.5 transition-colors focus:outline-none flex items-center justify-start shadow-inner cursor-pointer";
-  passwordToggle.firstElementChild.className = "w-5 h-5 bg-white rounded-full shadow-md transition-transform transform translate-x-0";
-  passwordInputContainer.classList.add('hidden');
-  sharePassword.value = '';
-  shareExpiry.selectedIndex = 1; 
-}
-
 function resetUploadView() {
   if (uploadProgressInterval) clearInterval(uploadProgressInterval);
   currentSelectedFile = null;
+  selectedFilesList = []; // Reset file array staging
   if (fileInput) fileInput.value = '';
   if (uploadDetailState) uploadDetailState.classList.add('hidden');
   if (uploadSuccessState) uploadSuccessState.classList.add('hidden');
@@ -317,7 +369,7 @@ function resetUploadView() {
 }
 
 // ----------------------------------------------------
-// Standalone Modular Functions (Phase 4 / Supabase)
+// Standalone Modular Functions (Supabase Backend)
 // ----------------------------------------------------
 
 /**
@@ -334,47 +386,54 @@ function generateSecretID() {
 }
 
 /**
- * Handles the file save logic, pushing metadata and uploading file to Supabase
- * @param {File} file 
+ * Handles the file save logic, pushing metadata and uploading all files to Supabase
  */
-async function handleUpload(file) {
-  if (!file) return;
+async function handleUpload() {
+  if (selectedFilesList.length === 0) return;
 
+  // 1. Generate the secret_id BEFORE uploading (Crucial!)
   const secretId = generateSecretID();
   const isPasswordProtected = passwordToggle.getAttribute('aria-checked') === 'true';
   const passwordVal = isPasswordProtected ? sharePassword.value.trim() : null;
   const expiryVal = parseInt(shareExpiry.value);
+  const folderPath = `${secretId}/`;
 
-  // Sanitizing path parameters properly to resolve "Invalid path specified in request URL"
-  let sanitizedFileName = file.name
-    .replace(/\s+/g, '_')
-    .replace(/[^a-zA-Z0-9._-]/g, '');
-  if (!sanitizedFileName) {
-    sanitizedFileName = `file_${secretId}`;
-  }
-  const storagePath = `${secretId}/${sanitizedFileName}`;
+  const totalSize = selectedFilesList.reduce((sum, f) => sum + f.size, 0);
+  const summaryName = selectedFilesList.length === 1 
+    ? selectedFilesList[0].name 
+    : `Multiple Files (${selectedFilesList.length} items)`;
 
   if (isSupabaseConfigured && supabaseClient) {
     try {
-      // 1. Upload Physical File to Supabase Storage Bucket 'user_files'
-      const { data: uploadData, error: uploadError } = await supabaseClient.storage
-        .from('user_files')
-        .upload(storagePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
+      // Loop through selected files and upload them one by one to bucket
+      for (let file of selectedFilesList) {
+        let sanitizedFileName = file.name
+          .replace(/\s+/g, '_')
+          .replace(/[^a-zA-Z0-9._-]/g, '');
+        if (!sanitizedFileName) {
+          sanitizedFileName = `file_${Math.random().toString(36).substring(2, 7)}`;
+        }
+        const storagePath = `${folderPath}${sanitizedFileName}`;
 
-      if (uploadError) throw uploadError;
+        const { data: uploadData, error: uploadError } = await supabaseClient.storage
+          .from('user_files')
+          .upload(storagePath, file, {
+            cacheControl: '3600',
+            upsert: true
+          });
 
-      // 2. Insert row to database table 'shared_links'
+        if (uploadError) throw uploadError;
+      }
+
+      // Insert row to database table 'shared_links' mapping columns to match schema
       const { error: dbError } = await supabaseClient
         .from('shared_links')
         .insert([
           {
             secret_id: secretId,
-            file_name: file.name, // Save the original name in table metadata
-            file_size: file.size,
-            storage_path: storagePath,
+            file_name: summaryName,
+            file_size: totalSize,
+            storage_path: folderPath,
             password: passwordVal,
             expiry_days: expiryVal
           }
@@ -388,18 +447,20 @@ async function handleUpload(file) {
     }
   } else {
     // Local Memory Fallback Mode
-    window.sessionBlobs[secretId] = file;
+    // Save array of raw files mapped to Secret ID
+    window.sessionBlobs[secretId] = [...selectedFilesList];
     
     const fileRecord = {
       id: secretId,
-      name: file.name,
-      size: file.size,
+      name: summaryName,
+      size: totalSize,
+      storage_path: folderPath,
       password: passwordVal,
       expiry: expiryVal
     };
     
     window.uploadedFiles.push(fileRecord);
-    console.log('Secure File Saved (Session memory database):', fileRecord);
+    console.log('Secure Folder Saved (Local preview memory):', fileRecord);
   }
 
   // Populate Success state
@@ -410,7 +471,7 @@ async function handleUpload(file) {
   uploadSuccessState.classList.remove('hidden');
 
   if (isSupabaseConfigured) {
-    triggerToast('Secure Uploaded', `File uploaded to cloud bucket. ID: ${secretId}`, 'success');
+    triggerToast('Secure Uploaded', `Files uploaded to cloud folder. ID: ${secretId}`, 'success');
   } else {
     triggerToast('Local Preview Mode', `Saved to session. ID: ${secretId} (Set keys in script.js to connect database)`, 'info');
   }
@@ -456,7 +517,8 @@ async function fetchFile(secretID) {
         name: match.name,
         size: match.size,
         password: match.password,
-        expiry: match.expiry
+        expiry: match.expiry,
+        storage_path: match.storage_path
       };
     }
     return null;
@@ -512,7 +574,7 @@ async function handleRetrieve() {
       triggerToast('Encrypted File', 'Please input the password to unlock preview.', 'info');
     } else {
       activeSecuredRecord = foundRecord;
-      displayRetrievedFile(foundRecord);
+      await displayRetrievedFile(foundRecord);
       triggerToast('File Located', `Successfully retrieved: ${foundRecord.name}`, 'success');
     }
   } catch (err) {
@@ -521,54 +583,202 @@ async function handleRetrieve() {
   }
 }
 
-function displayRetrievedFile(record) {
-  const category = getFileTypeCategory(record.name);
+async function displayRetrievedFile(record) {
+  downloadFilesList.innerHTML = '';
+  let filesToDisplay = [];
 
-  // Populate preview icon block
-  downloadPreviewIcon.innerHTML = iconSvgs[category] || iconSvgs.default;
+  const isLocalSession = !isSupabaseConfigured || !record.storage_path;
+
+  if (!isLocalSession && supabaseClient) {
+    try {
+      // List files inside the Supabase storage path folder (remove trailing slash for list query)
+      const cleanFolderPath = record.storage_path.replace(/\/$/, '');
+      const { data: fileObjects, error: listError } = await supabaseClient.storage
+        .from('user_files')
+        .list(cleanFolderPath);
+
+      if (listError) throw listError;
+
+      // Map matching storage objects
+      filesToDisplay = fileObjects
+        .filter(f => f.name !== '.emptyFolderPlaceholder')
+        .map(f => ({
+          name: f.name,
+          size: f.metadata ? f.metadata.size : 0,
+          storage_path: `${record.storage_path}${f.name}`
+        }));
+
+    } catch (err) {
+      console.error('List files error:', err);
+      triggerToast('Retrieval Warning', 'Could not load individual files list from cloud storage.', 'error');
+      // Fallback display
+      filesToDisplay = [{
+        name: record.name,
+        size: record.size,
+        storage_path: record.storage_path
+      }];
+    }
+  } else {
+    // Local Memory Fallback Mode
+    const localFiles = window.sessionBlobs[record.id];
+    if (Array.isArray(localFiles)) {
+      filesToDisplay = localFiles.map(f => ({
+        name: f.name,
+        size: f.size,
+        storage_path: null
+      }));
+    } else {
+      filesToDisplay = [{
+        name: record.name,
+        size: record.size,
+        storage_path: null
+      }];
+    }
+  }
+
+  // Set Header summary UI elements
+  const summaryCategory = filesToDisplay.length === 1 ? getFileTypeCategory(filesToDisplay[0].name) : 'archive';
+  downloadPreviewIcon.innerHTML = iconSvgs[summaryCategory] || iconSvgs.default;
   downloadPreviewIcon.className = 'w-16 h-16 rounded-xl flex flex-col items-center justify-center shadow-inner shrink-0 relative overflow-hidden ';
   
-  const colors = iconColors[category] || iconColors.default;
+  const colors = iconColors[summaryCategory] || iconColors.default;
   downloadPreviewIcon.classList.add(colors.bg, colors.border, colors.text);
   
-  const ext = record.name.split('.').pop().toUpperCase();
+  const ext = filesToDisplay.length === 1 ? filesToDisplay[0].name.split('.').pop().toUpperCase() : 'ITEMS';
   const extTag = document.createElement('span');
   extTag.className = `absolute bottom-1 text-[8px] font-bold tracking-wider px-1 rounded uppercase ${colors.text} bg-white/80 border border-current/10`;
   extTag.textContent = ext.substring(0, 4);
   downloadPreviewIcon.appendChild(extTag);
 
-  // File details
   downloadFileName.textContent = record.name;
-  downloadFileSize.textContent = `${formatBytes(record.size)} • ${category.toUpperCase()}`;
+  downloadFileSize.textContent = `${formatBytes(record.size)} • ${filesToDisplay.length} file(s)`;
   downloadFileExpiry.textContent = `${record.expiry} ${record.expiry === 1 ? 'Day' : 'Days'}`;
 
-  // If Supabase is active, the link action is intercepted
-  if (isSupabaseConfigured && record.storage_path) {
-    downloadActionBtn.href = "#";
-    downloadActionBtn.removeAttribute('download');
-  } else {
-    // Local memory fallback mapping
-    let downloadUrl = '';
-    const actualFileBlob = window.sessionBlobs[record.id];
+  // Render individual file list
+  filesToDisplay.forEach((file) => {
+    const fileCategory = getFileTypeCategory(file.name);
+    const fileColors = iconColors[fileCategory] || iconColors.default;
+    const fileIconHtml = iconSvgs[fileCategory] || iconSvgs.default;
 
-    if (actualFileBlob) {
-      downloadUrl = URL.createObjectURL(actualFileBlob);
-    } else {
-      const fallbackText = `ShareFlow Local Session Recovery Alert\n` +
-                           `===================================\n` +
-                           `File Name: ${record.name}\n` +
-                           `File Size: ${record.size} bytes (${formatBytes(record.size)})\n\n` +
-                           `Alert: The active session was reloaded, losing the local browser memory Blob URL.\n` +
-                           `In a production deployment, this button fetches and downloads the actual file from a remote cloud storage bucket instead of this local fallback representation.`;
-      
-      const mockBlob = new Blob([fallbackText], { type: 'text/plain' });
-      downloadUrl = URL.createObjectURL(mockBlob);
-    }
-    downloadActionBtn.href = downloadUrl;
-    downloadActionBtn.setAttribute('download', actualFileBlob ? record.name : `${record.name.split('.')[0]}_RECOVERED.txt`);
-  }
+    const fileItem = document.createElement('div');
+    fileItem.className = 'flex items-center justify-between bg-white/50 border border-gray-200/30 rounded-lg p-2.5 shadow-sm w-full';
+    fileItem.innerHTML = `
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="p-1.5 rounded-md flex items-center justify-center border ${fileColors.bg} ${fileColors.border} ${fileColors.text}">
+          ${fileIconHtml}
+        </div>
+        <div class="flex flex-col min-w-0">
+          <span class="text-xs font-semibold text-gray-700 truncate max-w-[150px] sm:max-w-[250px]">${file.name}</span>
+          <span class="text-[9px] text-gray-400">${formatBytes(file.size)}</span>
+        </div>
+      </div>
+      <button class="download-item-btn bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-semibold py-1 px-3 rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1" data-path="${file.storage_path || ''}" data-name="${file.name}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+        <span>Download</span>
+      </button>
+    `;
+
+    downloadFilesList.appendChild(fileItem);
+  });
+
+  // Bind click download action for each retrieved item button
+  const downloadItemBtns = downloadFilesList.querySelectorAll('.download-item-btn');
+  downloadItemBtns.forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const filePath = btn.getAttribute('data-path');
+      const fileName = btn.getAttribute('data-name');
+      await triggerSingleFileDownload(btn, filePath, fileName, record.id);
+    });
+  });
+
+  // Adjust download action button values
+  downloadActionBtn.classList.remove('hidden');
+  downloadActionBtn.querySelector('span').textContent = filesToDisplay.length > 1 ? "Download All Files" : "Download File";
 
   downloadResultContainer.classList.remove('hidden');
+}
+
+/**
+ * Executes Single File retrieval download logic
+ * @param {HTMLButtonElement} button 
+ * @param {string} path 
+ * @param {string} name 
+ * @param {string} secretId 
+ */
+async function triggerSingleFileDownload(button, path, name, secretId) {
+  const originalHTML = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = `<span>Downloading...</span>`;
+  button.style.pointerEvents = "none";
+
+  try {
+    const isLocalSession = !isSupabaseConfigured || !path;
+    let downloadUrl = '';
+
+    if (isLocalSession) {
+      // Local session download lookup
+      const localFiles = window.sessionBlobs[secretId];
+      let matchFile = null;
+      if (Array.isArray(localFiles)) {
+        matchFile = localFiles.find(f => f.name === name);
+      }
+
+      if (matchFile) {
+        downloadUrl = URL.createObjectURL(matchFile);
+      } else {
+        // Fallback recovery mock blob
+        const fallbackText = `ShareFlow Local Session Recovery Alert\n` +
+                             `===================================\n` +
+                             `File Name: ${name}\n` +
+                             `Alert: The active session was reloaded, losing the local browser memory Blob URL.\n` +
+                             `In a production deployment, this downloads the actual file from your Supabase bucket.`;
+        
+        const mockBlob = new Blob([fallbackText], { type: 'text/plain' });
+        downloadUrl = URL.createObjectURL(mockBlob);
+      }
+
+      // Trigger saving
+      const tempAnchor = document.createElement('a');
+      tempAnchor.href = downloadUrl;
+      tempAnchor.download = matchFile ? name : `${name.split('.')[0]}_RECOVERED.txt`;
+      document.body.appendChild(tempAnchor);
+      tempAnchor.click();
+      document.body.removeChild(tempAnchor);
+      if (!matchFile) URL.revokeObjectURL(downloadUrl);
+
+    } else {
+      // Supabase storage bucket file download
+      if (!supabaseClient) throw new Error("Supabase client is not initialized.");
+
+      const { data: fileBlob, error: downloadError } = await supabaseClient.storage
+        .from('user_files')
+        .download(path);
+
+      if (downloadError) throw downloadError;
+
+      const blobUrl = URL.createObjectURL(fileBlob);
+      const tempAnchor = document.createElement('a');
+      tempAnchor.href = blobUrl;
+      tempAnchor.download = name;
+      document.body.appendChild(tempAnchor);
+      tempAnchor.click();
+      
+      document.body.removeChild(tempAnchor);
+      URL.revokeObjectURL(blobUrl);
+    }
+
+    triggerToast('Download Completed', `Successfully retrieved: ${name}`, 'success');
+
+  } catch (err) {
+    console.error('File download error:', err);
+    triggerToast('Download Failed', err.message || `Error downloading ${name}.`, 'error');
+  } finally {
+    // Restore button UI
+    button.disabled = false;
+    button.innerHTML = originalHTML;
+    button.style.pointerEvents = "auto";
+  }
 }
 
 function checkDownloadPassword() {
@@ -589,6 +799,12 @@ function checkDownloadPassword() {
   }
 }
 
+function showDownloadError(msg, toastMsg) {
+  errorText.textContent = msg;
+  downloadErrorMsg.classList.remove('hidden');
+  triggerToast('Retrieval Error', toastMsg, 'error');
+}
+
 // ----------------------------------------------------
 // Event Listeners Binding Engine
 // ----------------------------------------------------
@@ -601,7 +817,7 @@ function bindEventListeners() {
 
   fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-      handleFileSelection(e.target.files[0]);
+      handleFileSelection(e.target.files);
     }
   });
 
@@ -630,7 +846,7 @@ function bindEventListeners() {
     dropZoneOverlay.classList.add('opacity-0');
 
     if (e.dataTransfer.files.length > 0) {
-      handleFileSelection(e.dataTransfer.files[0]);
+      handleFileSelection(e.dataTransfer.files);
     }
   });
 
@@ -658,14 +874,14 @@ function bindEventListeners() {
   });
 
   generateIdBtn.addEventListener('click', async () => {
-    if (currentSelectedFile && !generateIdBtn.disabled) {
+    if (selectedFilesList.length > 0 && !generateIdBtn.disabled) {
       const originalBtnHTML = generateIdBtn.innerHTML;
       generateIdBtn.disabled = true;
       generateIdBtn.innerHTML = `<span>Uploading...</span><svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>`;
       generateIdBtn.className = "w-full bg-blue-500/80 text-white font-medium text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed";
       
       try {
-        await handleUpload(currentSelectedFile);
+        await handleUpload();
       } catch (err) {
         console.error(err);
         triggerToast('Upload Failed', err.message || 'Error uploading file to storage.', 'error');
@@ -714,53 +930,23 @@ function bindEventListeners() {
     }
   });
 
-  // Cloud storage file downloader handler
+  // Folder Download Action (Downloads all files sequentially)
   downloadActionBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
     if (!activeSecuredRecord) return;
 
-    const isLocalSession = !isSupabaseConfigured || !activeSecuredRecord.storage_path;
-    if (isLocalSession) {
-      // Allow browser to follow default ObjectURL href
-      return;
-    }
+    const downloadBtns = downloadFilesList.querySelectorAll('.download-item-btn');
+    if (downloadBtns.length === 0) return;
 
-    e.preventDefault();
+    triggerToast('Folder Download', `Starting sequence download of ${downloadBtns.length} items...`, 'info');
 
-    // Show visual loading button state
-    const originalText = downloadActionBtn.querySelector('span').textContent;
-    downloadActionBtn.querySelector('span').textContent = "Downloading...";
-    downloadActionBtn.style.pointerEvents = "none";
-
-    try {
-      if (!supabaseClient) throw new Error("Supabase client is not initialized.");
-
-      const { data: fileBlob, error: downloadError } = await supabaseClient.storage
-        .from('user_files')
-        .download(activeSecuredRecord.storage_path);
-
-      if (downloadError) throw downloadError;
-
-      // Trigger native browser download stream
-      const blobUrl = URL.createObjectURL(fileBlob);
-      const tempAnchor = document.createElement('a');
-      tempAnchor.href = blobUrl;
-      tempAnchor.download = activeSecuredRecord.name;
-      document.body.appendChild(tempAnchor);
-      tempAnchor.click();
-      
-      // Clean memory
-      document.body.removeChild(tempAnchor);
-      URL.revokeObjectURL(blobUrl);
-
-      triggerToast('Download Completed', 'The file has been successfully retrieved.', 'success');
-
-    } catch (err) {
-      console.error('Cloud download error:', err);
-      triggerToast('Download Failed', err.message || 'Error downloading file from storage bucket.', 'error');
-    } finally {
-      // Revert styles
-      downloadActionBtn.querySelector('span').textContent = originalText;
-      downloadActionBtn.style.pointerEvents = "auto";
+    // Trigger individual downloads sequentially
+    for (let btn of downloadBtns) {
+      const path = btn.getAttribute('data-path');
+      const name = btn.getAttribute('data-name');
+      await triggerSingleFileDownload(btn, path, name, activeSecuredRecord.id);
+      // Wait 350ms between trigger streams to prevent browser download throttles
+      await new Promise(resolve => setTimeout(resolve, 350));
     }
   });
 }
