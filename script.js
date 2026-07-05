@@ -2,19 +2,18 @@
 // Supabase Cloud Configuration (Backend Connection)
 // ----------------------------------------------------
 const SUPABASE_URL = 'https://ydkhhnralclajmryhqeg.supabase.co/rest/v1/';
-const SUPABASE_KEY = 'sb_publishable_lidAyqqBG9WtsMXQghzfzw_a1YdOBhE';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlka2hobnJhbGNsYWptcnlocWVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNTEyNTUsImV4cCI6MjA5ODgyNzI1NX0.xirFAhMo6cYAM9JPLZKdgnmNaY2FZCFcadnht947AaQ';
 
-// Check if credentials have been replaced with actual values
 const isSupabaseConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_KEY !== 'YOUR_SUPABASE_ANON_KEY';
+let supabaseClient = null;
 
-// Initialize Supabase Client
-const supabase = isSupabaseConfigured && window.supabase 
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) 
-  : null;
-
-// Log connectivity state for debugging
 if (isSupabaseConfigured) {
-  console.log("ShareFlow: Supabase Live Database connection initialized.");
+  if (window.supabase) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log("ShareFlow: Supabase Live Database connection initialized.");
+  } else {
+    console.error("ShareFlow Error: Supabase CDN library is missing or failed to load. Running in local fallback mode.");
+  }
 } else {
   console.warn("ShareFlow: Running in Local Preview Mode. Set SUPABASE_URL and SUPABASE_KEY in script.js to connect database.");
 }
@@ -23,69 +22,24 @@ if (isSupabaseConfigured) {
 // Global State Management
 // ----------------------------------------------------
 window.uploadedFiles = [];
-window.sessionBlobs = {}; // Runtime memory storage mapping Secret ID -> File Blob (Local Preview Only)
+window.sessionBlobs = {}; 
 
 let currentSelectedFile = null;
 let uploadProgressInterval = null;
 let activeSecuredRecord = null; 
 
-// DOM References
-const tabUpload = document.getElementById('tab-upload');
-const tabDownload = document.getElementById('tab-download');
-const uploadPanel = document.getElementById('upload-panel');
-const downloadPanel = document.getElementById('download-panel');
-
-const uploadInitialState = document.getElementById('upload-initial-state');
-const uploadDetailState = document.getElementById('upload-detail-state');
-const uploadSuccessState = document.getElementById('upload-success-state');
-
-const dropZone = document.getElementById('drop-zone');
-const dropZoneOverlay = document.getElementById('drop-zone-overlay');
-const fileInput = document.getElementById('file-input');
-
-const detailFileName = document.getElementById('detail-file-name');
-const detailFileSize = document.getElementById('detail-file-size');
-const detailFileIcon = document.getElementById('detail-file-icon');
-const cancelUploadBtn = document.getElementById('cancel-upload-btn');
-const progressBarFill = document.getElementById('progress-bar-fill');
-const uploadStatusText = document.getElementById('upload-status-text');
-const uploadStats = document.getElementById('upload-stats');
-
-const passwordToggle = document.getElementById('password-toggle');
-const passwordInputContainer = document.getElementById('password-input-container');
-const sharePassword = document.getElementById('share-password');
-const shareExpiry = document.getElementById('share-expiry');
-
-const generateIdBtn = document.getElementById('generate-id-btn');
-const secretIdBox = document.getElementById('secret-id-box');
-const copyIdBtn = document.getElementById('copy-id-btn');
-const copyBtnText = document.getElementById('copy-btn-text');
-const copyIcon = document.getElementById('copy-icon');
-const resetUploadBtn = document.getElementById('reset-upload-btn');
-
-// Download Panel DOM
-const downloadIdInput = document.getElementById('download-id-input');
-const retrieveBtn = document.getElementById('retrieve-btn');
-const downloadErrorMsg = document.getElementById('download-error-msg');
-const errorText = document.getElementById('error-text');
-
-const downloadPasswordContainer = document.getElementById('download-password-container');
-const downloadPasswordInput = document.getElementById('download-password-input');
-const unlockBtn = document.getElementById('unlock-btn');
-const passwordErrorMsg = document.getElementById('password-error-msg');
-
-const downloadResultContainer = document.getElementById('download-result-container');
-const downloadPreviewIcon = document.getElementById('download-preview-icon');
-const downloadFileName = document.getElementById('download-file-name');
-const downloadFileSize = document.getElementById('download-file-size');
-const downloadFileExpiry = document.getElementById('download-file-expiry');
-const downloadActionBtn = document.getElementById('download-action-btn');
-
-// macOS Notification Toast DOM
-const toastNotification = document.getElementById('toast-notification');
-const toastIcon = document.getElementById('toast-icon');
-const toastTitle = document.getElementById('toast-title');
-const toastBody = document.getElementById('toast-body');
+// DOM References (Initialized safely on DOMContentLoaded to prevent null reference errors)
+let tabUpload, tabDownload, uploadPanel, downloadPanel;
+let uploadInitialState, uploadDetailState, uploadSuccessState;
+let dropZone, dropZoneOverlay, fileInput;
+let detailFileName, detailFileSize, detailFileIcon, cancelUploadBtn;
+let progressBarFill, uploadStatusText, uploadStats;
+let passwordToggle, passwordInputContainer, sharePassword, shareExpiry;
+let generateIdBtn, secretIdBox, copyIdBtn, copyBtnText, copyIcon, resetUploadBtn;
+let downloadIdInput, retrieveBtn, downloadErrorMsg, errorText;
+let downloadPasswordContainer, downloadPasswordInput, unlockBtn, passwordErrorMsg;
+let downloadResultContainer, downloadPreviewIcon, downloadFileName, downloadFileSize, downloadFileExpiry, downloadActionBtn;
+let toastNotification, toastIcon, toastTitle, toastBody;
 let toastTimeout = null;
 
 // SVGs for different file types to enhance UX visual elegance
@@ -122,9 +76,81 @@ const toastIconColors = {
 };
 
 // ----------------------------------------------------
+// Safe DOM Initialization on Document Load
+// ----------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+  // Select Tab Nodes
+  tabUpload = document.getElementById('tab-upload');
+  tabDownload = document.getElementById('tab-download');
+  uploadPanel = document.getElementById('upload-panel');
+  downloadPanel = document.getElementById('download-panel');
+
+  // Select Upload sub-panels
+  uploadInitialState = document.getElementById('upload-initial-state');
+  uploadDetailState = document.getElementById('upload-detail-state');
+  uploadSuccessState = document.getElementById('upload-success-state');
+
+  // Drag Zone elements
+  dropZone = document.getElementById('drop-zone');
+  dropZoneOverlay = document.getElementById('drop-zone-overlay');
+  fileInput = document.getElementById('file-input');
+
+  // Selected file layout metadata fields
+  detailFileName = document.getElementById('detail-file-name');
+  detailFileSize = document.getElementById('detail-file-size');
+  detailFileIcon = document.getElementById('detail-file-icon');
+  cancelUploadBtn = document.getElementById('cancel-upload-btn');
+  progressBarFill = document.getElementById('progress-bar-fill');
+  uploadStatusText = document.getElementById('upload-status-text');
+  uploadStats = document.getElementById('upload-stats');
+
+  // Settings layout inputs
+  passwordToggle = document.getElementById('password-toggle');
+  passwordInputContainer = document.getElementById('password-input-container');
+  sharePassword = document.getElementById('share-password');
+  shareExpiry = document.getElementById('share-expiry');
+
+  // Success screen and triggers
+  generateIdBtn = document.getElementById('generate-id-btn');
+  secretIdBox = document.getElementById('secret-id-box');
+  copyIdBtn = document.getElementById('copy-id-btn');
+  copyBtnText = document.getElementById('copy-btn-text');
+  copyIcon = document.getElementById('copy-icon');
+  resetUploadBtn = document.getElementById('reset-upload-btn');
+
+  // Download components
+  downloadIdInput = document.getElementById('download-id-input');
+  retrieveBtn = document.getElementById('retrieve-btn');
+  downloadErrorMsg = document.getElementById('download-error-msg');
+  errorText = document.getElementById('error-text');
+
+  downloadPasswordContainer = document.getElementById('download-password-container');
+  downloadPasswordInput = document.getElementById('download-password-input');
+  unlockBtn = document.getElementById('unlock-btn');
+  passwordErrorMsg = document.getElementById('password-error-msg');
+
+  downloadResultContainer = document.getElementById('download-result-container');
+  downloadPreviewIcon = document.getElementById('download-preview-icon');
+  downloadFileName = document.getElementById('download-file-name');
+  downloadFileSize = document.getElementById('download-file-size');
+  downloadFileExpiry = document.getElementById('download-file-expiry');
+  downloadActionBtn = document.getElementById('download-action-btn');
+
+  // Toast structures
+  toastNotification = document.getElementById('toast-notification');
+  toastIcon = document.getElementById('toast-icon');
+  toastTitle = document.getElementById('toast-title');
+  toastBody = document.getElementById('toast-body');
+
+  // Attach all action event listeners cleanly
+  bindEventListeners();
+});
+
+// ----------------------------------------------------
 // macOS Notification Toast Functionality
 // ----------------------------------------------------
 function triggerToast(title, body, type = 'info') {
+  if (!toastNotification || !toastIcon || !toastTitle || !toastBody) return;
   if (toastTimeout) clearTimeout(toastTimeout);
 
   toastTitle.textContent = title;
@@ -142,20 +168,10 @@ function triggerToast(title, body, type = 'info') {
 }
 
 function dismissToast() {
+  if (!toastNotification) return;
   toastNotification.classList.remove('opacity-100', 'translate-y-0');
   toastNotification.classList.add('opacity-0', '-translate-y-24');
 }
-
-// ----------------------------------------------------
-// Input Sanitization & Uppercase Lock
-// ----------------------------------------------------
-downloadIdInput.addEventListener('input', (e) => {
-  let raw = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (raw.length > 6) {
-    raw = raw.substring(0, 6);
-  }
-  e.target.value = raw;
-});
 
 // ----------------------------------------------------
 // Tab Toggling & Reset Logic
@@ -184,49 +200,6 @@ function switchTab(activeTab) {
     setTimeout(() => downloadIdInput.focus(), 50);
   }
 }
-
-tabUpload.addEventListener('click', () => switchTab('upload'));
-tabDownload.addEventListener('click', () => switchTab('download'));
-
-// ----------------------------------------------------
-// Drag & Drop / File Browser Actions
-// ----------------------------------------------------
-dropZone.addEventListener('click', () => fileInput.click());
-
-fileInput.addEventListener('change', (e) => {
-  if (e.target.files.length > 0) {
-    handleFileSelection(e.target.files[0]);
-  }
-});
-
-dropZone.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  dropZone.classList.add('border-blue-500', 'bg-blue-50/10');
-  dropZoneOverlay.classList.remove('opacity-0');
-  dropZoneOverlay.classList.add('opacity-100');
-});
-
-dropZone.addEventListener('dragleave', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  dropZone.classList.remove('border-blue-500', 'bg-blue-50/10');
-  dropZoneOverlay.classList.remove('opacity-100');
-  dropZoneOverlay.classList.add('opacity-0');
-});
-
-dropZone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  
-  dropZone.classList.remove('border-blue-500', 'bg-blue-50/10');
-  dropZoneOverlay.classList.remove('opacity-100');
-  dropZoneOverlay.classList.add('opacity-0');
-
-  if (e.dataTransfer.files.length > 0) {
-    handleFileSelection(e.dataTransfer.files[0]);
-  }
-});
 
 // ----------------------------------------------------
 // File Helper Functions & Size Formatting
@@ -325,11 +298,6 @@ function simulatePreparationAnimation(file) {
   }, 50);
 }
 
-cancelUploadBtn.addEventListener('click', () => {
-  resetUploadView();
-  triggerToast('Cancelled', 'File selection reset.', 'info');
-});
-
 function resetSharingParameters() {
   passwordToggle.setAttribute('aria-checked', 'false');
   passwordToggle.className = "w-10 h-6 bg-gray-300 rounded-full p-0.5 transition-colors focus:outline-none flex items-center justify-start shadow-inner cursor-pointer";
@@ -342,31 +310,11 @@ function resetSharingParameters() {
 function resetUploadView() {
   if (uploadProgressInterval) clearInterval(uploadProgressInterval);
   currentSelectedFile = null;
-  fileInput.value = '';
-  uploadDetailState.classList.add('hidden');
-  uploadSuccessState.classList.add('hidden');
-  uploadInitialState.classList.remove('hidden');
+  if (fileInput) fileInput.value = '';
+  if (uploadDetailState) uploadDetailState.classList.add('hidden');
+  if (uploadSuccessState) uploadSuccessState.classList.add('hidden');
+  if (uploadInitialState) uploadInitialState.classList.remove('hidden');
 }
-
-// ----------------------------------------------------
-// Password Toggle Interaction
-// ----------------------------------------------------
-passwordToggle.addEventListener('click', () => {
-  const isChecked = passwordToggle.getAttribute('aria-checked') === 'true';
-  if (!isChecked) {
-    passwordToggle.setAttribute('aria-checked', 'true');
-    passwordToggle.className = "w-10 h-6 bg-blue-600 rounded-full p-0.5 transition-colors focus:outline-none flex items-center justify-end shadow-inner cursor-pointer";
-    passwordToggle.firstElementChild.className = "w-5 h-5 bg-white rounded-full shadow-md transition-transform transform";
-    passwordInputContainer.classList.remove('hidden');
-    sharePassword.focus();
-  } else {
-    passwordToggle.setAttribute('aria-checked', 'false');
-    passwordToggle.className = "w-10 h-6 bg-gray-300 rounded-full p-0.5 transition-colors focus:outline-none flex items-center justify-start shadow-inner cursor-pointer";
-    passwordToggle.firstElementChild.className = "w-5 h-5 bg-white rounded-full shadow-md transition-transform transform translate-x-0";
-    passwordInputContainer.classList.add('hidden');
-    sharePassword.value = '';
-  }
-});
 
 // ----------------------------------------------------
 // Standalone Modular Functions (Phase 4 / Supabase)
@@ -398,10 +346,10 @@ async function handleUpload(file) {
   const expiryVal = parseInt(shareExpiry.value);
   const storagePath = `${secretId}/${file.name}`;
 
-  if (isSupabaseConfigured && supabase) {
+  if (isSupabaseConfigured && supabaseClient) {
     try {
       // 1. Upload Physical File to Supabase Storage Bucket 'user_files'
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabaseClient.storage
         .from('user_files')
         .upload(storagePath, file, {
           cacheControl: '3600',
@@ -411,7 +359,7 @@ async function handleUpload(file) {
       if (uploadError) throw uploadError;
 
       // 2. Insert row to database table 'shared_links'
-      const { error: dbError } = await supabase
+      const { error: dbError } = await supabaseClient
         .from('shared_links')
         .insert([
           {
@@ -466,9 +414,9 @@ async function handleUpload(file) {
  * @returns {Promise<Object|null>}
  */
 async function fetchFile(secretID) {
-  if (isSupabaseConfigured && supabase) {
+  if (isSupabaseConfigured && supabaseClient) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('shared_links')
         .select('*')
         .eq('secret_id', secretID)
@@ -508,60 +456,17 @@ async function fetchFile(secretID) {
 }
 
 // ----------------------------------------------------
-// UI Trigger Handlers
-// ----------------------------------------------------
-generateIdBtn.addEventListener('click', async () => {
-  if (currentSelectedFile && !generateIdBtn.disabled) {
-    // Show spinner loading text
-    const originalBtnHTML = generateIdBtn.innerHTML;
-    generateIdBtn.disabled = true;
-    generateIdBtn.innerHTML = `<span>Uploading...</span><svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>`;
-    generateIdBtn.className = "w-full bg-blue-500/80 text-white font-medium text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed";
-    
-    try {
-      await handleUpload(currentSelectedFile);
-    } catch (err) {
-      console.error(err);
-      triggerToast('Upload Failed', err.message || 'Error uploading file to storage.', 'error');
-      // Restore button on error
-      generateIdBtn.disabled = false;
-      generateIdBtn.innerHTML = originalBtnHTML;
-      generateIdBtn.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer";
-    }
-  }
-});
-
-// Clipboard Copy
-copyIdBtn.addEventListener('click', () => {
-  const idToCopy = secretIdBox.textContent.trim();
-  navigator.clipboard.writeText(idToCopy).then(() => {
-    copyBtnText.textContent = "Copied to Clipboard!";
-    copyIdBtn.className = "w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(16,185,129,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer";
-    copyIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>`;
-
-    triggerToast('Secret ID Copied', 'The code is ready to share with your recipient.', 'success');
-
-    setTimeout(() => {
-      copyBtnText.textContent = "Copy Secret ID";
-      copyIdBtn.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer";
-      copyIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
-    }, 2000);
-  }).catch(err => {
-    console.error('Failed to copy: ', err);
-  });
-});
-
-resetUploadBtn.addEventListener('click', () => {
-  resetUploadView();
-});
-
-// ----------------------------------------------------
 // Download Tab Retrievability Handlers
 // ----------------------------------------------------
-function showDownloadError(msg, toastMsg) {
-  errorText.textContent = msg;
-  downloadErrorMsg.classList.remove('hidden');
-  triggerToast('Retrieval Error', toastMsg, 'error');
+function resetDownloadView() {
+  if (downloadIdInput) downloadIdInput.value = '';
+  if (downloadPasswordInput) downloadPasswordInput.value = '';
+  activeSecuredRecord = null;
+
+  if (downloadErrorMsg) downloadErrorMsg.classList.add('hidden');
+  if (downloadPasswordContainer) downloadPasswordContainer.classList.add('hidden');
+  if (passwordErrorMsg) passwordErrorMsg.classList.add('hidden');
+  if (downloadResultContainer) downloadResultContainer.classList.add('hidden');
 }
 
 async function handleRetrieve() {
@@ -584,7 +489,6 @@ async function handleRetrieve() {
   }
 
   try {
-    // Retrieve matching record via modular fetch function
     const foundRecord = await fetchFile(searchId);
 
     if (!foundRecord) {
@@ -592,7 +496,6 @@ async function handleRetrieve() {
       return;
     }
 
-    // If password protected
     if (foundRecord.password) {
       activeSecuredRecord = foundRecord;
       downloadPasswordContainer.classList.remove('hidden');
@@ -631,7 +534,7 @@ function displayRetrievedFile(record) {
   downloadFileSize.textContent = `${formatBytes(record.size)} • ${category.toUpperCase()}`;
   downloadFileExpiry.textContent = `${record.expiry} ${record.expiry === 1 ? 'Day' : 'Days'}`;
 
-  // If Supabase is active, the link action is intercepted. Set href to '#'
+  // If Supabase is active, the link action is intercepted
   if (isSupabaseConfigured && record.storage_path) {
     downloadActionBtn.href = "#";
     downloadActionBtn.removeAttribute('download');
@@ -660,56 +563,6 @@ function displayRetrievedFile(record) {
   downloadResultContainer.classList.remove('hidden');
 }
 
-// Download Button Click Intercept (Required for Supabase download query)
-downloadActionBtn.addEventListener('click', async (e) => {
-  if (!activeSecuredRecord) return;
-
-  const isLocalSession = !isSupabaseConfigured || !activeSecuredRecord.storage_path;
-  if (isLocalSession) {
-    // Let browser navigate default local ObjectURL href
-    return;
-  }
-
-  // Intercept the anchor link default click navigation
-  e.preventDefault();
-
-  // Show visual downloading button state
-  const originalText = downloadActionBtn.querySelector('span').textContent;
-  downloadActionBtn.querySelector('span').textContent = "Downloading...";
-  downloadActionBtn.style.pointerEvents = "none";
-
-  try {
-    // 3. Download the physical file from Supabase storage bucket 'user_files'
-    const { data: fileBlob, error: downloadError } = await supabase.storage
-      .from('user_files')
-      .download(activeSecuredRecord.storage_path);
-
-    if (downloadError) throw downloadError;
-
-    // Trigger browser file saving flow using dynamic transient link
-    const blobUrl = URL.createObjectURL(fileBlob);
-    const tempAnchor = document.createElement('a');
-    tempAnchor.href = blobUrl;
-    tempAnchor.download = activeSecuredRecord.name;
-    document.body.appendChild(tempAnchor);
-    tempAnchor.click();
-    
-    // Clean up memory
-    document.body.removeChild(tempAnchor);
-    URL.revokeObjectURL(blobUrl);
-
-    triggerToast('Download Completed', 'The file has been successfully retrieved.', 'success');
-
-  } catch (err) {
-    console.error('Cloud download error:', err);
-    triggerToast('Download Failed', err.message || 'Error downloading file from storage bucket.', 'error');
-  } finally {
-    // Restore button UI styling
-    downloadActionBtn.querySelector('span').textContent = originalText;
-    downloadActionBtn.style.pointerEvents = "auto";
-  }
-});
-
 function checkDownloadPassword() {
   if (!activeSecuredRecord) return;
 
@@ -728,17 +581,178 @@ function checkDownloadPassword() {
   }
 }
 
-// Event Bindings
-retrieveBtn.addEventListener('click', handleRetrieve);
-downloadIdInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    handleRetrieve();
-  }
-});
+// ----------------------------------------------------
+// Event Listeners Binding Engine
+// ----------------------------------------------------
+function bindEventListeners() {
+  tabUpload.addEventListener('click', () => switchTab('upload'));
+  tabDownload.addEventListener('click', () => switchTab('download'));
 
-unlockBtn.addEventListener('click', checkDownloadPassword);
-downloadPasswordInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    checkDownloadPassword();
-  }
-});
+  // Drag Zone actions
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      handleFileSelection(e.target.files[0]);
+    }
+  });
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.add('border-blue-500', 'bg-blue-50/10');
+    dropZoneOverlay.classList.remove('opacity-0');
+    dropZoneOverlay.classList.add('opacity-100');
+  });
+
+  dropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.remove('border-blue-500', 'bg-blue-50/10');
+    dropZoneOverlay.classList.remove('opacity-100');
+    dropZoneOverlay.classList.add('opacity-0');
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    dropZone.classList.remove('border-blue-500', 'bg-blue-50/10');
+    dropZoneOverlay.classList.remove('opacity-100');
+    dropZoneOverlay.classList.add('opacity-0');
+
+    if (e.dataTransfer.files.length > 0) {
+      handleFileSelection(e.dataTransfer.files[0]);
+    }
+  });
+
+  cancelUploadBtn.addEventListener('click', () => {
+    resetUploadView();
+    triggerToast('Cancelled', 'File selection reset.', 'info');
+  });
+
+  // Password Options Switch
+  passwordToggle.addEventListener('click', () => {
+    const isChecked = passwordToggle.getAttribute('aria-checked') === 'true';
+    if (!isChecked) {
+      passwordToggle.setAttribute('aria-checked', 'true');
+      passwordToggle.className = "w-10 h-6 bg-blue-600 rounded-full p-0.5 transition-colors focus:outline-none flex items-center justify-end shadow-inner cursor-pointer";
+      passwordToggle.firstElementChild.className = "w-5 h-5 bg-white rounded-full shadow-md transition-transform transform";
+      passwordInputContainer.classList.remove('hidden');
+      sharePassword.focus();
+    } else {
+      passwordToggle.setAttribute('aria-checked', 'false');
+      passwordToggle.className = "w-10 h-6 bg-gray-300 rounded-full p-0.5 transition-colors focus:outline-none flex items-center justify-start shadow-inner cursor-pointer";
+      passwordToggle.firstElementChild.className = "w-5 h-5 bg-white rounded-full shadow-md transition-transform transform translate-x-0";
+      passwordInputContainer.classList.add('hidden');
+      sharePassword.value = '';
+    }
+  });
+
+  generateIdBtn.addEventListener('click', async () => {
+    if (currentSelectedFile && !generateIdBtn.disabled) {
+      const originalBtnHTML = generateIdBtn.innerHTML;
+      generateIdBtn.disabled = true;
+      generateIdBtn.innerHTML = `<span>Uploading...</span><svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>`;
+      generateIdBtn.className = "w-full bg-blue-500/80 text-white font-medium text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed";
+      
+      try {
+        await handleUpload(currentSelectedFile);
+      } catch (err) {
+        console.error(err);
+        triggerToast('Upload Failed', err.message || 'Error uploading file to storage.', 'error');
+        generateIdBtn.disabled = false;
+        generateIdBtn.innerHTML = originalBtnHTML;
+        generateIdBtn.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer";
+      }
+    }
+  });
+
+  copyIdBtn.addEventListener('click', () => {
+    const idToCopy = secretIdBox.textContent.trim();
+    navigator.clipboard.writeText(idToCopy).then(() => {
+      copyBtnText.textContent = "Copied to Clipboard!";
+      copyIdBtn.className = "w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(16,185,129,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer";
+      copyIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>`;
+
+      triggerToast('Secret ID Copied', 'The code is ready to share with your recipient.', 'success');
+
+      setTimeout(() => {
+        copyBtnText.textContent = "Copy Secret ID";
+        copyIdBtn.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer";
+        copyIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+      }, 2000);
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+    });
+  });
+
+  resetUploadBtn.addEventListener('click', () => {
+    resetUploadView();
+  });
+
+  // Download Retrieve Actions
+  retrieveBtn.addEventListener('click', handleRetrieve);
+  downloadIdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      handleRetrieve();
+    }
+  });
+
+  unlockBtn.addEventListener('click', checkDownloadPassword);
+  downloadPasswordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      checkDownloadPassword();
+    }
+  });
+
+  // Cloud storage file downloader handler
+  downloadActionBtn.addEventListener('click', async (e) => {
+    if (!activeSecuredRecord) return;
+
+    const isLocalSession = !isSupabaseConfigured || !activeSecuredRecord.storage_path;
+    if (isLocalSession) {
+      // Allow browser to follow default ObjectURL href
+      return;
+    }
+
+    e.preventDefault();
+
+    // Show visual loading button state
+    const originalText = downloadActionBtn.querySelector('span').textContent;
+    downloadActionBtn.querySelector('span').textContent = "Downloading...";
+    downloadActionBtn.style.pointerEvents = "none";
+
+    try {
+      if (!supabaseClient) throw new Error("Supabase client is not initialized.");
+
+      const { data: fileBlob, error: downloadError } = await supabaseClient.storage
+        .from('user_files')
+        .download(activeSecuredRecord.storage_path);
+
+      if (downloadError) throw downloadError;
+
+      // Trigger native browser download stream
+      const blobUrl = URL.createObjectURL(fileBlob);
+      const tempAnchor = document.createElement('a');
+      tempAnchor.href = blobUrl;
+      tempAnchor.download = activeSecuredRecord.name;
+      document.body.appendChild(tempAnchor);
+      tempAnchor.click();
+      
+      // Clean memory
+      document.body.removeChild(tempAnchor);
+      URL.revokeObjectURL(blobUrl);
+
+      triggerToast('Download Completed', 'The file has been successfully retrieved.', 'success');
+
+    } catch (err) {
+      console.error('Cloud download error:', err);
+      triggerToast('Download Failed', err.message || 'Error downloading file from storage bucket.', 'error');
+    } finally {
+      // Revert styles
+      downloadActionBtn.querySelector('span').textContent = originalText;
+      downloadActionBtn.style.pointerEvents = "auto";
+    }
+  });
+}
