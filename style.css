@@ -3,3 +3,42 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Premium, ultra-smooth fluid drift animations for background ambient blobs */
+@keyframes fluid-drift-1 {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1) translate(0, 0);
+    opacity: 0.12;
+  }
+  33% {
+    transform: translate(-50%, -50%) scale(1.15) translate(40px, -60px);
+    opacity: 0.18;
+  }
+  66% {
+    transform: translate(-50%, -50%) scale(0.9) translate(-30px, 30px);
+    opacity: 0.14;
+  }
+}
+
+@keyframes fluid-drift-2 {
+  0%, 100% {
+    transform: translate(50%, 50%) scale(1) translate(0, 0);
+    opacity: 0.12;
+  }
+  33% {
+    transform: translate(50%, 50%) scale(0.85) translate(-40px, 50px);
+    opacity: 0.15;
+  }
+  66% {
+    transform: translate(50%, 50%) scale(1.1) translate(30px, -30px);
+    opacity: 0.18;
+  }
+}
+
+.ambient-glow-1 {
+  animation: fluid-drift-1 22s ease-in-out infinite;
+}
+
+.ambient-glow-2 {
+  animation: fluid-drift-2 22s ease-in-out infinite;
+}

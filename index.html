@@ -21,8 +21,8 @@
 <body class="bg-[#09090D] min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden select-none">
 
   <!-- Ambient macOS Wallpaper Glow Blobs -->
-  <div class="absolute top-1/4 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[35rem] h-[35rem] bg-indigo-500/15 rounded-full mix-blend-screen filter blur-[90px] animate-pulse pointer-events-none"></div>
-  <div class="absolute bottom-1/4 right-1/3 translate-x-1/2 translate-y-1/2 w-[35rem] h-[35rem] bg-fuchsia-500/15 rounded-full mix-blend-screen filter blur-[90px] animate-pulse pointer-events-none"></div>
+  <div class="absolute top-1/4 left-1/3 w-[35rem] h-[35rem] bg-indigo-500/15 rounded-full mix-blend-screen filter blur-[90px] ambient-glow-1 pointer-events-none"></div>
+  <div class="absolute bottom-1/4 right-1/3 w-[35rem] h-[35rem] bg-fuchsia-500/15 rounded-full mix-blend-screen filter blur-[90px] ambient-glow-2 pointer-events-none"></div>
 
   <!-- macOS-style Toast Notification (Dark Theme Variant) -->
   <div id="toast-notification" class="fixed top-6 right-6 z-50 transform -translate-y-24 opacity-0 transition-all duration-500 ease-out pointer-events-none w-80 bg-black/60 backdrop-blur-xl border border-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.5)] rounded-xl p-4 flex gap-3 items-start select-none">
@@ -38,11 +38,6 @@
   <!-- Main Window Container -->
   <main class="relative w-full max-w-[600px] bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_32px_64px_rgba(0,0,0,0.6)] rounded-2xl p-6 flex flex-col gap-6 z-10 transition-all duration-300">
     
-    <!-- Header: Rebranded Header Title -->
-    <header class="flex items-center justify-end pb-2">
-      <span class="text-xs font-bold text-white/50 uppercase tracking-widest select-none">UnD</span>
-    </header>
-
     <!-- Navigation Bar: Segmented Controls -->
     <nav class="bg-white/5 p-1 rounded-xl flex gap-1 w-full max-w-sm mx-auto shadow-inner border border-white/5">
       <button id="tab-upload" class="w-1/2 bg-white/15 text-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] rounded-lg py-1.5 px-4 text-sm font-medium focus:outline-none transition-all duration-200 cursor-pointer">
