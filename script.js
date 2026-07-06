@@ -1,7 +1,7 @@
 // ----------------------------------------------------
 // Supabase Cloud Configuration (Backend Connection)
 // ----------------------------------------------------
-const SUPABASE_URL = 'https://ydkhhnralclajmryhqeg.supabase.co';
+const SUPABASE_URL = 'https://ydkhhnralclajmryhqeg.supabase.co/rest/v1/';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlka2hobnJhbGNsYWptcnlocWVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNTEyNTUsImV4cCI6MjA5ODgyNzI1NX0.xirFAhMo6cYAM9JPLZKdgnmNaY2FZCFcadnht947AaQ';
 
 const isSupabaseConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_KEY !== 'YOUR_SUPABASE_ANON_KEY';
@@ -52,14 +52,14 @@ const iconSvgs = {
   default: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`
 };
 
-// Color indicators matching icon category
+// Dark Mode Compliant indicator colors matching icon category
 const iconColors = {
-  pdf: { bg: 'bg-rose-50', border: 'border-rose-100', text: 'text-rose-500' },
-  image: { bg: 'bg-emerald-50', border: 'border-emerald-100', text: 'text-emerald-500' },
-  archive: { bg: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-500' },
-  audio: { bg: 'bg-indigo-50', border: 'border-indigo-100', text: 'text-indigo-500' },
-  video: { bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-500' },
-  default: { bg: 'bg-gray-50', border: 'border-gray-100', text: 'text-gray-500' }
+  pdf: { bg: 'bg-rose-500/10', border: 'border-rose-500/20', text: 'text-rose-400' },
+  image: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400' },
+  archive: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-400' },
+  audio: { bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', text: 'text-indigo-400' },
+  video: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400' },
+  default: { bg: 'bg-white/5', border: 'border-white/10', text: 'text-gray-400' }
 };
 
 // SVGs for Notification Toast Types
@@ -70,9 +70,9 @@ const toastIcons = {
 };
 
 const toastIconColors = {
-  success: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
-  error: { bg: 'bg-rose-50', text: 'text-rose-600' },
-  info: { bg: 'bg-blue-50', text: 'text-blue-600' }
+  success: { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+  error: { bg: 'bg-rose-500/10', text: 'text-rose-400' },
+  info: { bg: 'bg-blue-500/10', text: 'text-blue-400' }
 };
 
 // ----------------------------------------------------
@@ -173,25 +173,21 @@ function dismissToast() {
 }
 
 // ----------------------------------------------------
-// Tab Toggling & Reset Logic
+// Tab Toggling & Reset Logic (Dark Mode Compliant)
 // ----------------------------------------------------
 function switchTab(activeTab) {
   resetUploadView();
   resetDownloadView();
 
   if (activeTab === 'upload') {
-    tabUpload.classList.add('bg-white', 'text-gray-800', 'shadow-[0_1px_3px_rgba(0,0,0,0.05),0_1px_2px_rgba(0,0,0,0.1)]');
-    tabUpload.classList.remove('text-gray-500');
-    tabDownload.classList.remove('bg-white', 'text-gray-800', 'shadow-[0_1px_3px_rgba(0,0,0,0.05),0_1px_2px_rgba(0,0,0,0.1)]');
-    tabDownload.classList.add('text-gray-500');
+    tabUpload.className = "w-1/2 bg-white/15 text-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] rounded-lg py-1.5 px-4 text-sm font-medium focus:outline-none transition-all duration-200 cursor-pointer";
+    tabDownload.className = "w-1/2 text-gray-400 hover:text-white rounded-lg py-1.5 px-4 text-sm font-medium focus:outline-none transition-all duration-200 cursor-pointer";
 
     uploadPanel.classList.remove('hidden');
     downloadPanel.classList.add('hidden');
   } else {
-    tabDownload.classList.add('bg-white', 'text-gray-800', 'shadow-[0_1px_3px_rgba(0,0,0,0.05),0_1px_2px_rgba(0,0,0,0.1)]');
-    tabDownload.classList.remove('text-gray-500');
-    tabUpload.classList.remove('bg-white', 'text-gray-800', 'shadow-[0_1px_3px_rgba(0,0,0,0.05),0_1px_2px_rgba(0,0,0,0.1)]');
-    tabUpload.classList.add('text-gray-500');
+    tabDownload.className = "w-1/2 bg-white/15 text-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] rounded-lg py-1.5 px-4 text-sm font-medium focus:outline-none transition-all duration-200 cursor-pointer";
+    tabUpload.className = "w-1/2 text-gray-400 hover:text-white rounded-lg py-1.5 px-4 text-sm font-medium focus:outline-none transition-all duration-200 cursor-pointer";
 
     downloadPanel.classList.remove('hidden');
     uploadPanel.classList.add('hidden');
@@ -278,18 +274,18 @@ function renderUploadFilesList() {
     const iconHtml = iconSvgs[category] || iconSvgs.default;
 
     const itemDiv = document.createElement('div');
-    itemDiv.className = "flex items-center justify-between bg-white/50 border border-gray-200/30 rounded-lg p-2.5 shadow-sm";
+    itemDiv.className = "flex items-center justify-between bg-white/5 border border-white/5 rounded-lg p-2.5 shadow-sm";
     itemDiv.innerHTML = `
       <div class="flex items-center gap-2.5 min-w-0">
         <div class="p-1.5 rounded-md flex items-center justify-center border ${colors.bg} ${colors.border} ${colors.text}">
           ${iconHtml}
         </div>
         <div class="flex flex-col min-w-0">
-          <span class="text-xs font-semibold text-gray-700 truncate max-w-[200px] sm:max-w-[300px]">${file.name}</span>
+          <span class="text-xs font-semibold text-gray-200 truncate max-w-[200px] sm:max-w-[300px]">${file.name}</span>
           <span class="text-[9px] text-gray-400">${formatBytes(file.size)} &bull; ${category.toUpperCase()}</span>
         </div>
       </div>
-      <button class="remove-file-btn text-gray-400 hover:text-rose-500 p-1 rounded-full hover:bg-rose-50/50 transition-colors cursor-pointer" data-index="${index}">
+      <button class="remove-file-btn text-gray-400 hover:text-rose-400 p-1 rounded-full hover:bg-rose-500/10 transition-colors cursor-pointer" data-index="${index}">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     `;
@@ -328,7 +324,7 @@ function simulatePreparationAnimation(totalSize) {
   if (uploadProgressInterval) clearInterval(uploadProgressInterval);
   
   generateIdBtn.disabled = true;
-  generateIdBtn.className = "w-full bg-gray-400 text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-not-allowed";
+  generateIdBtn.className = "w-full bg-white/10 text-white/40 font-medium text-sm py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-not-allowed";
   
   let progress = 0;
   progressBarFill.style.width = '0%';
@@ -344,11 +340,11 @@ function simulatePreparationAnimation(totalSize) {
       clearInterval(uploadProgressInterval);
       
       progressBarFill.style.width = '100%';
-      uploadStatusText.innerHTML = '<span class="text-emerald-600 font-medium">Ready to secure & share</span>';
+      uploadStatusText.innerHTML = '<span class="text-emerald-400 font-medium">Ready to secure & share</span>';
       uploadStats.textContent = `${fileSizeInMb} MB of ${fileSizeInMb} MB`;
       
       generateIdBtn.disabled = false;
-      generateIdBtn.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer";
+      generateIdBtn.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer";
     } else {
       progressBarFill.style.width = `${progress}%`;
       uploadStatusText.textContent = `Preparing... ${progress}%`;
@@ -654,21 +650,21 @@ async function displayRetrievedFile(record) {
   downloadFileSize.textContent = `${formatBytes(record.size)} • ${filesToDisplay.length} file(s)`;
   downloadFileExpiry.textContent = `${record.expiry} ${record.expiry === 1 ? 'Day' : 'Days'}`;
 
-  // Render individual file list
+  // Render individual file list (Dark Mode Compliant)
   filesToDisplay.forEach((file) => {
     const fileCategory = getFileTypeCategory(file.name);
     const fileColors = iconColors[fileCategory] || iconColors.default;
     const fileIconHtml = iconSvgs[fileCategory] || iconSvgs.default;
 
     const fileItem = document.createElement('div');
-    fileItem.className = 'flex items-center justify-between bg-white/50 border border-gray-200/30 rounded-lg p-2.5 shadow-sm w-full';
+    fileItem.className = 'flex items-center justify-between bg-white/5 border border-white/5 rounded-lg p-2.5 shadow-sm w-full';
     fileItem.innerHTML = `
       <div class="flex items-center gap-2.5 min-w-0">
         <div class="p-1.5 rounded-md flex items-center justify-center border ${fileColors.bg} ${fileColors.border} ${fileColors.text}">
           ${fileIconHtml}
         </div>
         <div class="flex flex-col min-w-0">
-          <span class="text-xs font-semibold text-gray-700 truncate max-w-[150px] sm:max-w-[250px]">${file.name}</span>
+          <span class="text-xs font-semibold text-gray-200 truncate max-w-[150px] sm:max-w-[250px]">${file.name}</span>
           <span class="text-[9px] text-gray-400">${formatBytes(file.size)}</span>
         </div>
       </div>
@@ -824,7 +820,7 @@ function bindEventListeners() {
   dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    dropZone.classList.add('border-blue-500', 'bg-blue-50/10');
+    dropZone.classList.add('border-blue-500', 'bg-white/10');
     dropZoneOverlay.classList.remove('opacity-0');
     dropZoneOverlay.classList.add('opacity-100');
   });
@@ -832,7 +828,7 @@ function bindEventListeners() {
   dropZone.addEventListener('dragleave', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    dropZone.classList.remove('border-blue-500', 'bg-blue-50/10');
+    dropZone.classList.remove('border-blue-500', 'bg-white/10');
     dropZoneOverlay.classList.remove('opacity-100');
     dropZoneOverlay.classList.add('opacity-0');
   });
@@ -841,7 +837,7 @@ function bindEventListeners() {
     e.preventDefault();
     e.stopPropagation();
     
-    dropZone.classList.remove('border-blue-500', 'bg-blue-50/10');
+    dropZone.classList.remove('border-blue-500', 'bg-white/10');
     dropZoneOverlay.classList.remove('opacity-100');
     dropZoneOverlay.classList.add('opacity-0');
 
@@ -866,7 +862,7 @@ function bindEventListeners() {
       sharePassword.focus();
     } else {
       passwordToggle.setAttribute('aria-checked', 'false');
-      passwordToggle.className = "w-10 h-6 bg-gray-300 rounded-full p-0.5 transition-colors focus:outline-none flex items-center justify-start shadow-inner cursor-pointer";
+      passwordToggle.className = "w-10 h-6 bg-white/10 rounded-full p-0.5 transition-colors focus:outline-none flex items-center justify-start shadow-inner cursor-pointer";
       passwordToggle.firstElementChild.className = "w-5 h-5 bg-white rounded-full shadow-md transition-transform transform translate-x-0";
       passwordInputContainer.classList.add('hidden');
       sharePassword.value = '';
@@ -887,7 +883,7 @@ function bindEventListeners() {
         triggerToast('Upload Failed', err.message || 'Error uploading file to storage.', 'error');
         generateIdBtn.disabled = false;
         generateIdBtn.innerHTML = originalBtnHTML;
-        generateIdBtn.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer";
+        generateIdBtn.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer";
       }
     }
   });
@@ -896,14 +892,14 @@ function bindEventListeners() {
     const idToCopy = secretIdBox.textContent.trim();
     navigator.clipboard.writeText(idToCopy).then(() => {
       copyBtnText.textContent = "Copied to Clipboard!";
-      copyIdBtn.className = "w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(16,185,129,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer";
+      copyIdBtn.className = "w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer";
       copyIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>`;
 
       triggerToast('Secret ID Copied', 'The code is ready to share with your recipient.', 'success');
 
       setTimeout(() => {
         copyBtnText.textContent = "Copy Secret ID";
-        copyIdBtn.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.2)] transition-all flex items-center justify-center gap-2 cursor-pointer";
+        copyIdBtn.className = "w-full bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer";
         copyIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
       }, 2000);
     }).catch(err => {
